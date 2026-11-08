@@ -12,7 +12,7 @@ Result: **0.33 tok/s -> ~10 tok/s decode** (bench prompts; ~9 on technical text,
 
 | | Value |
 |---|---|
-| Decode, bench prompts (sampled) | 9.80 tok/s as configured (250 ms/step, 2.45 tok/step); ~9.97 with the causal draft mask; ~10.1 with causal + fast top-p |
+| Decode, bench prompts (sampled) | 9.80 tok/s as configured (250 ms/step, 2.45 tok/step); ~9.97 with the causal draft mask; 10.08 with causal + fast top-p (mean of the night10 fast-top-p runs, causal on) |
 | Decode, technical text / 64k / 90k context | ~9.2-9.9 / ~8.0 / 7.62 tok/s |
 | Decode, real use (one user session, 16-48k) | ~6.8 tok/s (2.05 tok/step at ~304 ms/step) |
 | Prompt processing | ~47 tok/s; 42.1 tok/s for a 90k-token prompt |

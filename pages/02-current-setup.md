@@ -8,7 +8,7 @@ State as of 2026-11-07. Sources: `k3-research/K3-SETUP.md` (written 2026-10-31, 
 
 | | Value | Conditions / source |
 |---|---|---|
-| Decode, bench prompts | **9.80 tok/s** (250 ms/step, accept 0.74, 2.45 tok/step) as configured in `run-kimi.sh`; **~9.97** with the causal draft mask; **~10.1** with causal + fast top-p | 5 prompts x 2 seeds, temp 1.0 / top-p 0.95 (`speed_test.sh`). `dab_base` 2026-11-05; causal mean of 4 runs; Nov 7 baselines 10.10 / 10.01 tok/s at 247-248 ms/step (SESSION3 Results 4, 11, 12) |
+| Decode, bench prompts | **9.80 tok/s** (250 ms/step, accept 0.74, 2.45 tok/step) as configured in `run-kimi.sh`; **~9.97** with the causal draft mask; **10.08** with causal + fast top-p (night10 fast-top-p runs, causal on: 10.24 / 9.91) | 5 prompts x 2 seeds, temp 1.0 / top-p 0.95 (`speed_test.sh`). `dab_base` 2026-11-05; causal mean of 4 runs; Nov 7 baselines 10.10 / 10.01 tok/s at 247-248 ms/step (SESSION3 Results 4, 11, 12) |
 | Decode, technical text (2k context) | 9.25 tok/s (bidirectional draft); 9.18-9.87 causal | same runs, 512 generated tokens |
 | Decode, real use | ~6.8 tok/s: 2.05 tok/step at ~304 ms/step | one user session, 17,992 steps at 16-48k context (SESSION3 "Confidence-based draft length") |
 | Decode at long context | 7.98-8.01 tok/s at 64k (night8); 7.62 tok/s at 90k (Nov 4) | technical summary task; HANDOFF 31.z10, SESSION3 Result 6 |
