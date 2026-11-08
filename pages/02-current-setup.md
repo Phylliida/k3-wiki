@@ -28,7 +28,7 @@ Every setting, with the reason (comments condensed from the script):
 | Setting | Value | Why / measured effect |
 |---|---|---|
 | Model | `K3-dense-v1` + overlay `K3-dense-v2-overlay.gguf` (`LLAMA_TENSOR_SOURCE`, `_RE='.*'`) | 2-bit experts (IQ2_XS) + better dense tensors; KLD vs native 0.243 -> 0.095 at the same speed ([quantization](07-quantization-dense-kv.md)) |
-| Draft | `K3-dflash-iq4_xs.gguf`, `--spec-type draft-dflash --spec-draft-n-max 2` | 2 drafted tokens per step; 3 is no faster ([speculative decoding](09-speculative-decoding.md)) |
+| Draft | `K3-dflash-distill3-iq4_xs.gguf` (since 2026-11-07; before: `K3-dflash-iq4_xs.gguf`), `--spec-type draft-dflash --spec-draft-n-max 2` | 2 drafted tokens per step; 3 is no faster ([speculative decoding](09-speculative-decoding.md)) |
 | Placement | `-ngl 99 -ngld 99 -ncmoe 93 --no-op-offload -fit off -sm layer -ts 50,43 -devd CUDA1` | all dense on GPUs (layer split), all routed experts in RAM; GPU1 holds the draft and output head |
 | `LLAMA_MOE_GPU_FRAC=1.0` | any expert may go to the layer's GPU | the GPU reads host memory in place via HMM |
 | `LLAMA_MOE_GPU_K=2` | experts streamed for single tokens | the cache reserves max(K, KB) scratch slots; K 2 frees a slot's VRAM for nothing |
@@ -47,13 +47,16 @@ Every setting, with the reason (comments condensed from the script):
 | `--cache-disk /data2/k3eval/prompt-cache --cache-disk-size 24576` | disk prompt cache | resumes conversations after a restart (below) |
 | `--temp 1.0 --top-p 0.95 --top-k 0 --min-p 0.0` | Moonshot's recommended chat sampling | |
 
-### Lossless improvements measured but not yet in `run-kimi.sh` (as of 2026-11-07)
+### Adopted 2026-11-07 (lossless; `run-kimi.sh` edited with the user's approval)
 
-| Change | Gain | How to adopt | Source |
+| Change | Gain | How | Source |
 |---|---|---|---|
-| Causal in-block attention for the DFlash draft | +1.7% bench, ~+3% technical, +3% tok/step | `LLAMA_DFLASH_CAUSAL=1`, or write `dflash.attention.causal=true` into the draft GGUF (user decision) | SESSION3 "Draft attention direction" |
-| Fast exact top-p | +1.5% (sample phase 6.05 -> 2.2 ms/step) | default on in builds after commit `0c587ea0d` (2026-11-06); takes effect when the server runs a new build | SESSION3 Result 11 |
-| Distilled draft (`distill3` / `distill4`, trained on the user's own sessions) | held-out offline +5.4% tok/step; online 8-probe session bench +4.6% (distill4) | pending a larger online session bench (night14, running) | SESSION3 Results 13-14, [distillation](10-draft-distillation.md) |
+| Distilled draft `distill3` (trained on the user's own sessions, acceptance loss) | held-out offline +0.046 / +0.055 per position (+5.4% expected tok/step); online 24-probe paired +0.054 +- 0.028 per draft; generic bench +0.013 | `DRAFT=/mnt/items/distill/K3-dflash-distill3-iq4_xs.gguf` (previous: `/data2/kimi-k3/K3-dflash-iq4_xs.gguf`) | SESSION3 Results 13-15 |
+| Causal in-block attention for the DFlash draft | +1.7% bench, ~+3% technical, +3% tok/step | comes with distill3 (`dflash.attention.causal = true` in its metadata); `LLAMA_DFLASH_CAUSAL=1` for other drafts | SESSION3 "Draft attention direction" |
+| Fast exact top-p | +1.5% (sample phase 6.05 -> 2.2 ms/step) | `LLAMA_SAMPLER_TOPP_FAST=1` (default on since `0c587ea0d`) | SESSION3 Result 11 |
+| Removed the TEMP `LLAMA_SPEC_CUT_RAND=0.10` | ~+1% | random draft cuts were only for collecting cutoff data | SESSION3 Result 4 |
+
+Expected with all of these: bench ~10.1 tok/s (distill3 measured 10.10), real agentic use ~7.4 tok/s (was ~6.8; ~300 ms/step, ~2.2 tok/step), to be verified from the step log (`LLAMA_SPEC_STEP_LOG` stays on for that).
 
 ## `serve_k3.sh` (the experiment launcher)
 
@@ -127,7 +130,7 @@ Before this, a server restart lost every conversation, and K3 re-processes promp
 ## Open items (as of 2026-11-07)
 
 - Adopt the causal draft mask (env knob or GGUF key) and remove `LLAMA_SPEC_CUT_RAND` from `run-kimi.sh` (keep the step log).
-- Adopt the distilled draft distill3 (recommended after night14: offline +0.046 / +0.055 per position, online paired +0.054 +- 0.028; user's decision); then retune `LLAMA_SPEC_RS_TAU` and revisit n_max 3.
+- distill3 adopted 2026-11-07. Next: verify real-use acceptance from the step log, retune `LLAMA_SPEC_RS_TAU` for the distilled draft, revisit n_max 3.
 - `lossless2` mode is untuned since the x16 reseat.
 - Before any upstreaming: remove TEMP code (op profilers, sched timing, stats hooks, dumps, `LLAMA_SPEC_RS_STATS`, `GGML_CUDA_POOL_LOG`, experimental knobs) and move K3-specific knobs out of environment variables (K3-SETUP "Open items").
 - Unexplained: the fused res_mix op's KLD 0.0065; the in-situ cost of the async prefetch copy beyond the reads-in-flight fix.

@@ -8,16 +8,16 @@ Result: **0.33 tok/s -> ~10 tok/s decode** (bench prompts; ~9 on technical text,
 
 ## Current best configuration (2026-11-07)
 
-`run-kimi.sh` (details: [current setup](pages/02-current-setup.md)): dense-v1 + the dense-v2 overlay; all routed experts in RAM, computed by the CPU (multi-token AVX2 kernel) except a per-layer GPU share streamed over PCIe via HMM and a 9-slot-per-layer VRAM expert cache; union expert skip at tau 0.045; cross-layer expert prefetch; DFlash IQ4_XS draft with 2 drafted tokens and stochastic (lossless) verification; 8-bit KV cache; ub 1024; 96k context; layer split 50/43 over the GPUs.
+`run-kimi.sh` (details: [current setup](pages/02-current-setup.md)): dense-v1 + the dense-v2 overlay; all routed experts in RAM, computed by the CPU (multi-token AVX2 kernel) except a per-layer GPU share streamed over PCIe via HMM and a 9-slot-per-layer VRAM expert cache; union expert skip at tau 0.045; cross-layer expert prefetch; DFlash IQ4_XS draft **distilled on the user's own sessions (distill3, adopted 2026-11-07; causal in-block attention)** with 2 drafted tokens and stochastic (lossless) verification; fast exact top-p; 8-bit KV cache; ub 1024; 96k context; layer split 50/43 over the GPUs.
 
 | | Value |
 |---|---|
-| Decode, bench prompts (sampled) | 9.80 tok/s as configured (250 ms/step, 2.45 tok/step); ~9.97 with the causal draft mask; 10.08 with causal + fast top-p (mean of the night10 fast-top-p runs, causal on) |
+| Decode, bench prompts (sampled) | **~10.1 tok/s with the adopted config** (distill3 measured 10.10 tok/s, 252 ms/step, 2.54 tok/step); before 2026-11-07: 9.80 (250 ms/step, 2.45 tok/step), ~9.97 with the causal mask, 10.08 with causal + fast top-p |
 | Decode, technical text / 64k / 90k context | ~9.2-9.9 / ~8.0 / 7.62 tok/s |
-| Decode, real use (one user session, 16-48k) | ~6.8 tok/s (2.05 tok/step at ~304 ms/step) |
+| Decode, real use (one user session, 16-48k) | ~6.8 tok/s measured before 2026-11-07 (2.05 tok/step at ~304 ms/step); **~7.4 estimated** with the adopted config (~300 ms/step, ~2.2 tok/step), to be verified from the step log |
 | Prompt processing | ~47 tok/s; 42.1 tok/s for a 90k-token prompt |
 | Quality vs native 4-bit (as served) | KLD 0.113, median 0.059, same top token 84.8% (0.095 / 86.1% without skip) |
-| Not yet adopted, measured lossless | causal draft attention (+1.7%), fast exact top-p (+1.5%, in builds after 2026-11-06); distilled draft trained on the user's own sessions (distill3: +5.4% expected tok/step on held-out sessions; online 24-probe paired +0.054 +- 0.028 per draft) |
+| Adopted 2026-11-07 (lossless) | distill3 draft (+5.4% expected tok/step on held-out sessions; online 24-probe paired +0.054 +- 0.028 per draft; carries the causal mask, +1.7%) and fast exact top-p (+1.5%) |
 
 ## Biggest wins
 
@@ -39,7 +39,7 @@ Result: **0.33 tok/s -> ~10 tok/s decode** (bench prompts; ~9 on technical text,
 | 14 | Small step-time wins: multi-column mat-vec, `iommu=pt`, cross-layer prefetch, CPU setup fix | 274-275 -> 266 -> 259-261 -> 256.5 -> 252/253 ms/step | 11-02 .. 11-04 | `cf1f96157`, `7d3132042`, `297e37d9f` | no | [timeline](pages/18-timeline.md) |
 | 15 | Causal in-block attention for the draft; fast exact top-p | +1.7%; +1.5% | 11-05 / 11-06 | `934620b52`, `0c587ea0d` | no | [speculative decoding](pages/09-speculative-decoding.md), [sampling](pages/11-sampling.md) |
 | 16 | Disk prompt cache (resume chats after restarts) | after a restart a 2.2k-token chat loaded in 1.8 s (its first 2049-token prompt took 72 s); 90k-token chats ~50 min -> seconds | 11-03 | `78c934053`, `867aeb6b9` | no | [current setup](pages/02-current-setup.md) |
-| 17 | Distilled draft on the user's own sessions (distill3, recommended, not yet adopted) | +0.046 / +0.055 / +0.060 acceptance per position on held-out sessions; online paired +0.054 +- 0.028 | 11-07 | `bc665ba0b` + `k3-research/distill/` | no | [draft distillation](pages/10-draft-distillation.md) |
+| 17 | Distilled draft on the user's own sessions (distill3, adopted 2026-11-07) | +0.046 / +0.055 / +0.060 acceptance per position on held-out sessions; online paired +0.054 +- 0.028 | 11-07 | `bc665ba0b` + `k3-research/distill/` | no | [draft distillation](pages/10-draft-distillation.md) |
 
 ## Pages
 
