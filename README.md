@@ -17,7 +17,7 @@ Result: **0.33 tok/s -> ~10 tok/s decode** (bench prompts; ~9 on technical text,
 | Decode, real use (one user session, 16-48k) | ~6.8 tok/s (2.05 tok/step at ~304 ms/step) |
 | Prompt processing | ~47 tok/s; 42.1 tok/s for a 90k-token prompt |
 | Quality vs native 4-bit (as served) | KLD 0.113, median 0.059, same top token 84.8% (0.095 / 86.1% without skip) |
-| Not yet adopted, measured lossless | causal draft attention (+1.7%), fast exact top-p (+1.5%, in builds after 2026-11-06); distilled draft trained on the user's own sessions (+5.4% expected tok/step on held-out sessions, online confirmation pending) |
+| Not yet adopted, measured lossless | causal draft attention (+1.7%), fast exact top-p (+1.5%, in builds after 2026-11-06); distilled draft trained on the user's own sessions (distill3: +5.4% expected tok/step on held-out sessions; online 24-probe paired +0.054 +- 0.028 per draft) |
 
 ## Biggest wins
 
@@ -39,7 +39,7 @@ Result: **0.33 tok/s -> ~10 tok/s decode** (bench prompts; ~9 on technical text,
 | 14 | Small step-time wins: multi-column mat-vec, `iommu=pt`, cross-layer prefetch, CPU setup fix | 274-275 -> 266 -> 259-261 -> 256.5 -> 252/253 ms/step | 11-02 .. 11-04 | `cf1f96157`, `7d3132042`, `297e37d9f` | no | [timeline](pages/18-timeline.md) |
 | 15 | Causal in-block attention for the draft; fast exact top-p | +1.7%; +1.5% | 11-05 / 11-06 | `934620b52`, `0c587ea0d` | no | [speculative decoding](pages/09-speculative-decoding.md), [sampling](pages/11-sampling.md) |
 | 16 | Disk prompt cache (resume chats after restarts) | after a restart a 2.2k-token chat loaded in 1.8 s (its first 2049-token prompt took 72 s); 90k-token chats ~50 min -> seconds | 11-03 | `78c934053`, `867aeb6b9` | no | [current setup](pages/02-current-setup.md) |
-| 17 | Distilled draft on the user's own sessions (pending) | +0.046 / +0.055 / +0.060 acceptance per position on held-out sessions | 11-07 | `bc665ba0b` + `k3-research/distill/` | no | [draft distillation](pages/10-draft-distillation.md) |
+| 17 | Distilled draft on the user's own sessions (distill3, recommended, not yet adopted) | +0.046 / +0.055 / +0.060 acceptance per position on held-out sessions; online paired +0.054 +- 0.028 | 11-07 | `bc665ba0b` + `k3-research/distill/` | no | [draft distillation](pages/10-draft-distillation.md) |
 
 ## Pages
 
@@ -69,4 +69,4 @@ Result: **0.33 tok/s -> ~10 tok/s decode** (bench prompts; ~9 on technical text,
 - **KLD** = mean KL divergence of next-token distributions against a reference (native 4-bit, or the same config without skip, as stated); K3 is chaotic, so differences are judged against a floor run ([methodology](pages/15-tools-and-methodology.md)).
 - **Lossless** = the same function up to float summation order; **lossy** changes always come with a KLD.
 - Sources are the project's working notes in the `k3-research/` folder of the user's workspace (not part of this repo): `HANDOFF.md` (chronological lab log; "HANDOFF §31.z" = its section), `K3-SETUP.md` (setup reference), `SESSION3-NOTES.md` (Nov 4-7 session, "Result N" = its numbered results), `dflash-distill-research.md`, plus raw logs in `/data2/k3eval/` and the fork's commit messages. Commit hashes refer to branch `k3-decode-speed` of the llama.cpp fork.
-- Experiments were still running when this was written (night14 session benches for the distilled drafts); results are as of 2026-11-07.
+- Results are as of 2026-11-07 evening (night14 session benches included).

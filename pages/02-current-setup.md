@@ -127,7 +127,7 @@ Before this, a server restart lost every conversation, and K3 re-processes promp
 ## Open items (as of 2026-11-07)
 
 - Adopt the causal draft mask (env knob or GGUF key) and remove `LLAMA_SPEC_CUT_RAND` from `run-kimi.sh` (keep the step log).
-- Decide on the distilled draft (distill3 / distill4) after night14; then retune `LLAMA_SPEC_RS_TAU` and revisit n_max 3.
+- Adopt the distilled draft distill3 (recommended after night14: offline +0.046 / +0.055 per position, online paired +0.054 +- 0.028; user's decision); then retune `LLAMA_SPEC_RS_TAU` and revisit n_max 3.
 - `lossless2` mode is untuned since the x16 reseat.
 - Before any upstreaming: remove TEMP code (op profilers, sched timing, stats hooks, dumps, `LLAMA_SPEC_RS_STATS`, `GGML_CUDA_POOL_LOG`, experimental knobs) and move K3-specific knobs out of environment variables (K3-SETUP "Open items").
 - Unexplained: the fused res_mix op's KLD 0.0065; the in-situ cost of the async prefetch copy beyond the reads-in-flight fix.

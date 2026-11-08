@@ -2,18 +2,18 @@
 
 [Back to index](../README.md) · Related: [speculative decoding](09-speculative-decoding.md), [tools and methodology](15-tools-and-methodology.md)
 
-Goal: raise draft acceptance by fine-tuning the modal-labs DFlash draft on our exact quantized target (dense-v2 overlay, 2-bit experts, skip). It is **lossless** for output quality (stochastic verification keeps the target's distribution); only speed depends on it. Status on 2026-11-07: generic data does not help; the user's own agentic sessions give **+0.046 / +0.055 / +0.060 acceptance per block position on held-out sessions** (distill3) and **+4.6% tok/step** in a small online session bench (distill4). A larger online check (night14) was still running when this was written.
+Goal: raise draft acceptance by fine-tuning the modal-labs DFlash draft on our exact quantized target (dense-v2 overlay, 2-bit experts, skip). It is **lossless** for output quality (stochastic verification keeps the target's distribution); only speed depends on it. Status on 2026-11-07: generic data does not help; the user's own agentic sessions give **+0.046 / +0.055 / +0.060 acceptance per block position on held-out sessions** (distill3), confirmed online but noisily (24-probe paired +0.054 +- 0.028). Recommended: distill3.
 
 ## Results at a glance
 
 | Draft | Data | Loss | Held-out offline pos1 / pos2 / pos3 (expected tok/step) | Online session bench (per draft) | Generic bench (per draft) | Verdict |
 |---|---|---|---|---|---|---|
-| modal (reference) | - | - | 0.7399 / 0.5483 / 0.4417 (2.145) | 0.603; repeat 0.583 | 0.774 | baseline |
+| modal (reference) | - | - | 0.7399 / 0.5483 / 0.4417 (2.145) | 0.603; repeat 0.583; 24-probe 0.572 | 0.774 | baseline |
 | distill1 | K2.5-written chat text (602k tokens) | 0.9 TV + 0.1 CE | 0.7111 / 0.5327 / 0.4324 (2.090) | - | 0.775 vs same-night ref 0.766 | rejected |
 | distill2 | on-policy K3 answers (354k tokens) | 0.9 TV + 0.1 CE | 0.7000 / 0.5190 / 0.4130 (2.063) | 0.542 | 0.747 (-0.027) | rejected |
 | distill2b | same as distill2 | acceptance loss | 0.7240 / 0.5295 / 0.4204 (2.107) | 0.556 | 0.774 (0) | rejected |
-| **distill3** | user's agentic sessions (526k tokens) | acceptance loss | **0.7856 / 0.6029 / 0.5015 (2.260, +5.4%)** | 0.612 | 0.787 (+0.013) | promising |
-| **distill4** | 2.3x the session data (1.18M tokens) | acceptance loss | **0.7887 / 0.6047 / 0.5032** | **0.643** (+4.6% tok/step vs ref mean) | - | promising, pending night14 |
+| **distill3** | user's agentic sessions (526k tokens) | acceptance loss | **0.7856 / 0.6029 / 0.5015 (2.260, +5.4%)** | 0.612; 24-probe 0.594 (paired per probe +0.054 +- 0.028) | 0.787 (+0.013) | **recommended** (positive on every measure) |
+| **distill4** | 2.3x the session data (1.18M tokens) | acceptance loss | **0.7887 / 0.6047 / 0.5032** | 0.643 (+4.6% tok/step vs ref mean); 24-probe 0.571 (paired per probe +0.051 +- 0.029) | - | matches distill3 offline, less consistent online |
 
 Decision rule used throughout: keep a distilled draft only if acceptance rises by **>= 0.02 per draft**, measured from step logs or paired evaluations, not a single run.
 
@@ -132,9 +132,31 @@ Generic bench speed tests (no throttling: 0.6% / 0.2% of steps > 350 ms): `dab12
 
 Caveats before adopting: the offline eval uses bf16 draft weights (the server runs IQ4_XS), and API-K3 text with local-K3 targets.
 
-## Pending (as of 2026-11-07)
+## 24-probe online check (night14, 2026-11-07 evening)
 
-night14: online session bench with 24 probes each for ref / distill3 / distill4 (new probe seed) to confirm the online gain; then the decision to deploy, retune `LLAMA_SPEC_RS_TAU` (0.7 today; likely to move toward 1.0 with a calibrated draft), and revisit n_max 3 if acceptance jumps.
+Same 24 held-out prompts (seed 7) for all three drafts; speeds are DRAM-throttle-affected (session benches had no
+cool-down), acceptance is not:
+
+```text
+session-bench ref24:       24 probes, accepted per draft 0.572 (4054/7089)
+session-bench distill3_24: 24 probes, accepted per draft 0.594 (4084/6873)
+session-bench distill4_24: 24 probes, accepted per draft 0.571 (3863/6766)
+```
+
+Pooled: distill3 +0.022, distill4 -0.001. Paired per probe (mean of per-prompt differences): **distill3 +0.054 +-
+0.028 (t 1.94, better on 13/24)**, distill4 +0.051 +- 0.029 (t 1.77, 12/24); distill4's flat pooled number comes from
+a few long generations where it did worse.
+
+| Draft | Held-out offline pos1 / pos2 | Online 8 probes | Online 24 probes pooled / paired | Generic bench |
+|---|---|---|---|---|
+| distill3 | +0.046 / +0.055 | +0.019 | +0.022 / +0.054 | +0.013 |
+| distill4 | +0.049 / +0.056 | +0.050 | -0.001 / +0.051 | - |
+
+**Recommendation: distill3**, positive on every measure (~+2-5% tokens per step in agentic sessions, lossless).
+Adopting it is the user's call (`-md` pointing at `K3-dflash-distill3-iq4_xs.gguf`; its metadata already sets the
+causal mask). Online session benches are noise-limited (sampled continuations, per-probe acceptance 0.35-0.9); the
+paired offline evaluation is the reliable instrument. Possible follow-ups: retune `LLAMA_SPEC_RS_TAU` for the
+distilled draft, revisit n_max 3.
 
 ## Lessons from this work
 

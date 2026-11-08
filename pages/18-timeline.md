@@ -41,7 +41,7 @@ Greedy numbers (before 2026-10-25) overstate real speed; from 2026-10-25 on, num
 | 11-05 | 9.80 tok/s (250 ms/step) | session-3 baseline (`dab_base`) | |
 | 11-05 | 9.97 (mean of 4) | causal in-block draft attention (env knob) | no |
 | 11-07 | ~10.1 (9.93 -> 10.08) | fast exact top-p | no |
-| 11-07 | (+4.6% tok/step in an 8-probe session bench) | distilled draft distill4 (pending confirmation) | no |
+| 11-07 | (~+2-5% tok/step in agentic sessions) | distilled draft distill3 recommended (offline +0.046 / +0.055 per position; online 24-probe paired +0.054 +- 0.028) | no |
 
 ## Changelog by day
 
@@ -75,7 +75,7 @@ Greedy numbers (before 2026-10-25) overstate real speed; from 2026-10-25 on, num
 
 **2026-11-06.** distill1 rejected (+0.009 per draft); night7 phase timing `8092e89fb`: padding works but nets zero -> cutoff closed; fast exact top-p `0c587ea0d`; acceptance flat vs context (night8); DRAM throttle returns under rebuild + decode -> `thermostat.sh`, fan layouts (layout 3 best); on-policy generation (293 answers, 301k tokens); fused res_mix op `c9666450c`; distill2 val shows the loss mismatch -> `--loss acc`; the user's own sessions prepared as distillation data; distill2 A/B rejected (-0.027).
 
-**2026-11-07.** night10: fast top-p +1.5% (confirmed); night11: fused res_mix no gain (off); distill3 trained (val +0.04 per position); session bench (ref 0.603, distill3 0.612, distill2b 0.556, distill2 0.542); held-out offline eval: distill3 +0.046 / +0.055 / +0.060 (+5.4% expected tok/step); distill4 (2.3x data) same offline, online 0.643 vs ref 0.583-0.603 (+4.6% tok/step); night14 (24-probe session benches) running.
+**2026-11-07.** night10: fast top-p +1.5% (confirmed); night11: fused res_mix no gain (off); distill3 trained (val +0.04 per position); session bench (ref 0.603, distill3 0.612, distill2b 0.556, distill2 0.542); held-out offline eval: distill3 +0.046 / +0.055 / +0.060 (+5.4% expected tok/step); distill4 (2.3x data) same offline, online 0.643 vs ref 0.583-0.603 (+4.6% tok/step); night14 24-probe session benches: ref 0.572, distill3 0.594, distill4 0.571 pooled; paired per probe distill3 +0.054 +- 0.028, distill4 +0.051 +- 0.029: distill3 recommended.
 
 ## Commit list (oldest first)
 
