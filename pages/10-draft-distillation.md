@@ -13,7 +13,7 @@ Goal: raise draft acceptance by fine-tuning the modal-labs DFlash draft on our e
 | distill2 | on-policy K3 answers (354k tokens) | 0.9 TV + 0.1 CE | 0.7000 / 0.5190 / 0.4130 (2.063) | 0.542 | 0.747 (-0.027) | rejected |
 | distill2b | same as distill2 | acceptance loss | 0.7240 / 0.5295 / 0.4204 (2.107) | 0.556 | 0.774 (0) | rejected |
 | **distill3** | user's agentic sessions (526k tokens) | acceptance loss | **0.7856 / 0.6029 / 0.5015 (2.260, +5.4%)** | 0.612; 24-probe 0.594 (paired per probe +0.054 +- 0.028) | 0.787 (+0.013) | **recommended** (positive on every measure) |
-| **distill4** | 2.3x the session data (1.18M tokens) | acceptance loss | **0.7887 / 0.6047 / 0.5032** | 0.643 (+4.6% tok/step vs ref mean); 24-probe 0.571 (paired per probe +0.051 +- 0.029) | - | matches distill3 offline, less consistent online |
+| **distill4** | 2.3x the session data (1.18M tokens) | acceptance loss | **0.7887 / 0.6047 / 0.5032** | 0.643 (+4.6% tok/step vs ref mean); 24-probe 0.571 (paired per probe +0.051 +- 0.029) | 0.764 (-0.010) | matches distill3 offline, less consistent online |
 
 Decision rule used throughout: keep a distilled draft only if acceptance rises by **>= 0.02 per draft**, measured from step logs or paired evaluations, not a single run.
 
@@ -150,7 +150,7 @@ a few long generations where it did worse.
 | Draft | Held-out offline pos1 / pos2 | Online 8 probes | Online 24 probes pooled / paired | Generic bench |
 |---|---|---|---|---|
 | distill3 | +0.046 / +0.055 | +0.019 | +0.022 / +0.054 | +0.013 |
-| distill4 | +0.049 / +0.056 | +0.050 | -0.001 / +0.051 | - |
+| distill4 | +0.049 / +0.056 | +0.050 | -0.001 / +0.051 | -0.010 (0.764 +- 0.010; 9.96 tok/s) |
 
 **Recommendation: distill3**, positive on every measure (~+2-5% tokens per step in agentic sessions, lossless).
 Adopting it is the user's call (`-md` pointing at `K3-dflash-distill3-iq4_xs.gguf`; its metadata already sets the
