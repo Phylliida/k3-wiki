@@ -62,6 +62,7 @@ Result: **0.33 tok/s -> ~10 tok/s decode** (bench prompts; ~9 on technical text,
 17. [Lessons and pitfalls](pages/17-lessons-and-pitfalls.md): estimates vs results, bugs found, process mistakes.
 18. [Timeline and changelog](pages/18-timeline.md): speed milestones, day-by-day log, commit list.
 19. [Prior art and other projects](pages/19-prior-art.md): other local-K3 engines, other drafts, early research documents, earlier GLM work on this box.
+20. [To do](pages/20-todo.md): ideas worth testing next, with costs and how to test them.
 
 ## Conventions
 
