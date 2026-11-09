@@ -18,3 +18,11 @@ Ideas worth testing, most promising first. Smaller open items are in [current se
 - **Lossless only if** position 2's proposal is conditioned on the token actually sampled for position 1. The existing `build_dspark_markov_head` chains on the argmax, so this needs a two-stage draft: sample position 1, apply the bias, then sample position 2.
 - **Evidence so far:** RadixArk's K3 DSpark has such a head and lost to DFlash (9.67-9.73 vs 9.97 tok/s), but it differs in everything else, so that says little about the head alone.
 - **Test:** train the head on distill3's hidden states with the acceptance loss and the real previous token, then score it with the paired held-out offline eval (distill3: 0.7856 / 0.6029 / 0.5015). Implement it in the server only if position 2 gains at least 0.02.
+
+## 3. Chunked KDA kernel for prompt processing
+
+- **Why:** `ggml/src/ggml-cuda/gated_delta_net.cu` has no chunked form (`//TODO: Add chunked kernel for even faster pre-fill`), so prompts run KDA one token at a time. Chunkwise forms update the recurrent state once per chunk; [LinQuant](19-prior-art.md) and flash-linear-attention have reference implementations.
+- **Gain (estimate, not measured at prompt shape):** KDA is ~0.76 ms/token (11 us per token per layer x 69 layers, from the decode-shape timing): ~3.6% of prompt time at 47 tok/s, ~5.3% at ub 2048's 69.5. Removing half to three-quarters of that gives ~2-4% faster prompts, ~1% of total model time.
+- **Cost:** a new CUDA kernel, including a per-chunk Gram matrix and triangular solve.
+- **Not bit-exact:** rounding changes slightly in FP32, so it needs a KLD check. INT8 operands are not part of this item; they would be lossy.
+- **Test:** first time the op with `test-backend-ops perf` at K3's shape (96 heads, 128 x 128 state, n_tokens 1024). Build the kernel only if KDA is at least ~3% of prompt time.
