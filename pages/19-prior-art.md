@@ -63,3 +63,16 @@ Before K3 the same machine (then with 125 GB of RAM, later 378 GiB, and one 3090
 - Static hot-expert caching was NO-GO (hot sets are session-specific); a dynamic LRU VRAM cache reached 8.09 -> 10.78 tok/s (+33%) after fixing pageable copies, per-layer sync bubbles and host-side classification. Lesson: hit rate is not speed; tune on wall clock.
 - Cross-layer expert prediction measured no better than random on GLM (same-step overlap 0.0266 vs 0.0278 random). **On K3 it worked**: layer L+1's experts are predictable from layer L's stream (6.8-7.0 of 16 among the top-8 predicted; random 0.14), though the resulting prefetch gained only ~1.3% because PCIe bandwidth, not prediction, is the ceiling ([MoE page](05-moe-placement-cache-prefetch.md)).
 - Hardware lessons that carried over: pinned PCIe host-to-device ~26.2 GB/s; SMT hurts; DIMM thermal throttling seen once with a bad DIMM layout (fixed by spacing the sticks); memory interleaving on this board needs complete channel pairs; session-to-session drift of +-10-20% means same-day controls.
+
+## Hyperserve / Hyperkernel (read 2026-11-08, commit `7048c58`)
+
+[Hyperstitioncc/Hyperkernel](https://github.com/Hyperstitioncc/Hyperkernel): a Rust host (MIT) plus precompiled "megakernels" for NVIDIA B300 (`sm_103a`), serving DeepSeek-V4.1-Flash on 4 GPUs. The kernel sources are not published: only cubins, SASS listings and layout metadata. The repo states no speed numbers. Read only; not built or run.
+
+| Part | What it does | For K3 on 2x 3090 + CPU experts |
+|---|---|---|
+| One persistent kernel with command rings, sampling and drafting in-kernel | no launches or host round trips per step | little: our experts run on the CPU, so each step returns to the host anyway; draft + sample + other is ~6 ms of 251 |
+| Experts in HBM as MXFP4, FP4 / 8-bit tensor-core MMA, TMA loads | tensor-core kernels (`UTCOMMA`, `UTCQMMA`, `UTMALDG`) | needs Blackwell / Hopper features; Ampere has neither TMA nor FP4 / FP8 MMA |
+| 4-GPU tensor parallel over a GPU-to-GPU fabric | experts split along K, peer memory | no P2P between our GPUs; already a dead end (`LLAMA_MOE_GPU_KB2`) |
+| Engram tables (~189 GiB on host), `idx.*` retrieval layers | DeepSeek-V4.1 model features | K3 has neither |
+| Prefix tree over refcounted 256-row KV pages | several prompt branches share KV | our one real-use miss was a compacted prompt with no shared prefix |
+| In-kernel draft: 3 MoE layers, block 6, rank-128 Markov logit-bias head (embed [vocab, 128], head [128, vocab]) | the Markov head makes each draft position depend on the previous draft token | **untested idea:** our DFlash draft decodes `[anchor, mask, mask]` in one pass, so position 2 never sees the sampled position 1. RadixArk's K3 DSpark had such a head but differs in everything else, so its result says nothing about the head alone |
