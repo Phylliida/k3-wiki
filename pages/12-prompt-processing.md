@@ -89,6 +89,12 @@ The GPUs stream the same bytes per batch, so bigger batches halve their cost per
 
 Same server, technical-summary prompts with prefix caching: 2119 tokens in 50.6 s (41.91 tok/s, cold); 7024 new tokens at 47.27 tok/s (1095 cached); 9024 at 46.35 (7095 cached); 17,024 at 44.69 (15,095 cached); 33,024 at 41.52 (31,095 cached). The distillation dumps (prompt processing over documents) ran at 47.0, 41.6, 38.0 (with outside load) and 46.9 tok/s.
 
+## Real use (SESSION3 Result 16, 2026-11-07)
+
+Server log of one session: a 13,212-token prompt at 46.3 tok/s; 3,089 and 1,679-token prompts at 28.6 and 26.2 tok/s (throttled); short prompts (36-457 tokens) at 7-22 tok/s (per-batch overhead). One request re-processed 51,174 tokens in 19.5 min (43.65 tok/s): a different or compacted prompt after a 78,797-token conversation, where the best disk-cache match was 14,151 tokens (f_sim 0.105, ~5.5k reused). That is inherent to the changed prompt; only faster prompt processing would shorten it (ub 2048 in the server, estimated +45%, not yet measured there).
+
+Across 18,460 of the user's requests there were 63.8M new input tokens vs 13.5M output (4.7:1; median 821 new / 306 output), which puts prompt processing at ~43% of model time at 47 / 7.4 tok/s, or ~36% at the measured real-use 5.6 tok/s.
+
 ## Notes
 
 - An earlier conclusion that "prompt processing slows decode" (decode ~400 ms/step after some requests) was the DRAM bandwidth throttle, not PP (HANDOFF §31, 31.x).

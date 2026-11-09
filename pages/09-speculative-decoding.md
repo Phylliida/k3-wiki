@@ -17,7 +17,7 @@ Speculative decoding with the **modal-labs/Kimi-K3-DFlash** draft is the second-
 | Causal in-block attention for the draft | +1.7% bench, ~+3% technical, +3% tok/step | 11-05, `934620b52` | adopt (env knob) |
 | RadixArk DSpark draft | 9.67-9.73 vs 9.97 tok/s (causal DFlash); +1.9 GB VRAM at 96k | 11-05, `015994ebc` | dropped |
 | Confidence-based draft length (cut draft 2 when unsure) | simulated +3.4% on real use; measured -1.6% on the bench (padded or not) | 11-04 .. 11-06, `ec5c26a52`, `88a810398` | closed |
-| Distilled drafts | see [draft distillation](10-draft-distillation.md) | 11-05 .. 11-07 | distill3/4 promising, pending |
+| Distilled drafts | see [draft distillation](10-draft-distillation.md) | 11-05 .. 11-07 | distill3 adopted 11-07 |
 
 ## Early analysis vs reality
 
@@ -151,6 +151,7 @@ Other findings: steps that would be cut are slightly *cheaper*, not dearer (sele
 - Real-use log by context bucket swings without a trend (8-16k pos1 0.441 / pos2|pos1 0.406; 16-24k 0.721 / 0.711; 24-32k 0.632 / 0.579; 32-40k 0.580 / 0.491; 40-48k 0.782 / 0.772): each bucket is mostly one session, so content dominates.
 - On-policy generation (K3 answering 293 prompts of a public dataset with max thinking): 0.704 per draft overall (answers hitting the 2048-token limit 0.655, EOS 0.761); per-answer p10-p90 0.62 / 0.67 / 0.79 / 0.88 / 0.93; 126,154 steps at 2.40 tok/step, 256 ms/step. A creative-writing prompt accepted only 0.53 per draft; math ~0.98.
 - Bench prompts: 0.77-0.79 per draft (pos1 ~0.86-0.88). So the bench overstates real use (2.05 tok/step), which is what the distillation work targets.
+- First real use with distill3 (2026-11-07, SESSION3 Result 16; 7,325 two-draft steps at 13-79k, median 55k): pos1 0.614, pos2|pos1 0.606, **0.494 accepted per draft, 1.99 tok/step**; acceptance per window or request spans 0.33-0.78. Median step 357 ms (decode 350, draft 3.7, sample 1.9).
 
 ## Not tried yet
 

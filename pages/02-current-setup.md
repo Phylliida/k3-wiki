@@ -10,7 +10,7 @@ State as of 2026-11-07. Sources: `k3-research/K3-SETUP.md` (written 2026-10-31, 
 |---|---|---|
 | Decode, bench prompts | **9.80 tok/s** (250 ms/step, accept 0.74, 2.45 tok/step) as configured in `run-kimi.sh`; **~9.97** with the causal draft mask; **10.08** with causal + fast top-p (night10 fast-top-p runs, causal on: 10.24 / 9.91) | 5 prompts x 2 seeds, temp 1.0 / top-p 0.95 (`speed_test.sh`). `dab_base` 2026-11-05; causal mean of 4 runs; Nov 7 baselines 10.10 / 10.01 tok/s at 247-248 ms/step (SESSION3 Results 4, 11, 12) |
 | Decode, technical text (2k context) | 9.25 tok/s (bidirectional draft); 9.18-9.87 causal | same runs, 512 generated tokens |
-| Decode, real use | ~6.8 tok/s: 2.05 tok/step at ~304 ms/step | one user session, 17,992 steps at 16-48k context (SESSION3 "Confidence-based draft length") |
+| Decode, real use | **~5.6 tok/s** overall with the adopted config: 1.99 tok/step, median 357 ms/step, throttled about half the time (~6.9 tok/s unthrottled); before the adopted config ~6.8 tok/s (2.05 tok/step at ~304 ms/step) | 7,325 steps at 13-79k context (SESSION3 Result 16); 17,992 steps at 16-48k (SESSION3 "Confidence-based draft length"). Different sessions and content, so not a paired comparison |
 | Decode at long context | 7.98-8.01 tok/s at 64k (night8); 7.62 tok/s at 90k (Nov 4) | technical summary task; HANDOFF 31.z10, SESSION3 Result 6 |
 | Prompt processing | **~47 tok/s** (2052 tokens in 43.7 s); 42.1 tok/s for a 90,119-token prompt | 8-bit KV + ub 1024 (HANDOFF 31.z10) |
 | Quality as served | **KLD 0.113**, median 0.059, same top token 84.8%, PPL 5.90 (native 5.44) vs native 4-bit | dense-v2 overlay + union skip 0.045, 3-token batches (HANDOFF 31.z, "v2_b3_skip045") |
@@ -56,7 +56,7 @@ Every setting, with the reason (comments condensed from the script):
 | Fast exact top-p | +1.5% (sample phase 6.05 -> 2.2 ms/step) | `LLAMA_SAMPLER_TOPP_FAST=1` (default on since `0c587ea0d`) | SESSION3 Result 11 |
 | Removed the TEMP `LLAMA_SPEC_CUT_RAND=0.10` | ~+1% | random draft cuts were only for collecting cutoff data | SESSION3 Result 4 |
 
-Expected with all of these: bench ~10.1 tok/s (distill3 measured 10.10), real agentic use ~7.4 tok/s (was ~6.8; ~300 ms/step, ~2.2 tok/step), to be verified from the step log (`LLAMA_SPEC_STEP_LOG` stays on for that).
+With all of these: bench ~10.1 tok/s (distill3 measured 10.10). The estimate for real agentic use was ~7.4 tok/s (~300 ms/step, ~2.2 tok/step); the first real session measured **~5.6 tok/s** (~6.9 without the DRAM throttle), see [speculative decoding](09-speculative-decoding.md) and [thermals](14-memory-bandwidth-thermals.md). `LLAMA_SPEC_STEP_LOG` stays on.
 
 ## `serve_k3.sh` (the experiment launcher)
 
@@ -129,8 +129,9 @@ Before this, a server restart lost every conversation, and K3 re-processes promp
 
 ## Open items (as of 2026-11-07)
 
-- Adopt the causal draft mask (env knob or GGUF key) and remove `LLAMA_SPEC_CUT_RAND` from `run-kimi.sh` (keep the step log).
-- distill3 adopted 2026-11-07. Next: verify real-use acceptance from the step log, retune `LLAMA_SPEC_RS_TAU` for the distilled draft, revisit n_max 3.
+- Real-use DRAM throttle: about half of the first real session; airflow onto DIMM bank A-D is the open lever ([thermals](14-memory-bandwidth-thermals.md)).
+- distill3 adopted 2026-11-07; real-use acceptance 0.494 per draft (one session). Open: a paired offline eval against the modal draft on that content, retuning `LLAMA_SPEC_RS_TAU` for the distilled draft, revisiting n_max 3.
+- ub 2048 prompt-processing A/B in the server (~+45% estimated; needs about 2 expert-cache slots of VRAM).
 - `lossless2` mode is untuned since the x16 reseat.
 - Before any upstreaming: remove TEMP code (op profilers, sched timing, stats hooks, dumps, `LLAMA_SPEC_RS_STATS`, `GGML_CUDA_POOL_LOG`, experimental knobs) and move K3-specific knobs out of environment variables (K3-SETUP "Open items").
 - Unexplained: the fused res_mix op's KLD 0.0065; the in-situ cost of the async prefetch copy beyond the reads-in-flight fix.

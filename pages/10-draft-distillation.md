@@ -153,10 +153,14 @@ a few long generations where it did worse.
 | distill4 | +0.049 / +0.056 | +0.050 | -0.001 / +0.051 | -0.010 (0.764 +- 0.010; 9.96 tok/s) |
 
 **Recommendation: distill3**, positive on every measure (~+2-5% tokens per step in agentic sessions, lossless).
-Adopting it is the user's call (`-md` pointing at `K3-dflash-distill3-iq4_xs.gguf`; its metadata already sets the
+Adopted 2026-11-07 (`-md` pointing at `K3-dflash-distill3-iq4_xs.gguf`; its metadata already sets the
 causal mask). Online session benches are noise-limited (sampled continuations, per-probe acceptance 0.35-0.9); the
 paired offline evaluation is the reliable instrument. Possible follow-ups: retune `LLAMA_SPEC_RS_TAU` for the
 distilled draft, revisit n_max 3.
+
+## First real use (2026-11-07, SESSION3 Result 16)
+
+One user session with distill3 (7,325 two-draft steps, 13-79k context): pos1 0.614, pos2|pos1 0.606, **0.494 accepted per draft, 1.99 tok/step**. This is below the ~0.52 per draft of the Nov 4 session with the modal draft, but the content differs, so it does not show whether distill3 helped there. Acceptance swung 0.33-0.78 per window or request. A paired offline evaluation of distill3 against the modal draft on this session's text would settle it; not done yet.
 
 ## Lessons from this work
 

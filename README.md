@@ -14,7 +14,7 @@ Result: **0.33 tok/s -> ~10 tok/s decode** (bench prompts; ~9 on technical text,
 |---|---|
 | Decode, bench prompts (sampled) | **~10.1 tok/s with the adopted config** (distill3 measured 10.10 tok/s, 252 ms/step, 2.54 tok/step); before 2026-11-07: 9.80 (250 ms/step, 2.45 tok/step), ~9.97 with the causal mask, 10.08 with causal + fast top-p |
 | Decode, technical text / 64k / 90k context | ~9.2-9.9 / ~8.0 / 7.62 tok/s |
-| Decode, real use (one user session, 16-48k) | ~6.8 tok/s measured before 2026-11-07 (2.05 tok/step at ~304 ms/step); **~7.4 estimated** with the adopted config (~300 ms/step, ~2.2 tok/step), to be verified from the step log |
+| Decode, real use (one user session each; content differs) | **~5.6 tok/s measured with the adopted config** on 2026-11-07 (13-79k context, median 55k; 1.99 tok/step, median 357 ms/step; DRAM throttle active for about half the session; ~6.9 tok/s without it). Before: ~6.8 tok/s at 16-48k (2.05 tok/step at ~304 ms/step). The ~7.4 estimate was too high |
 | Prompt processing | ~47 tok/s; 42.1 tok/s for a 90k-token prompt |
 | Quality vs native 4-bit (as served) | KLD 0.113, median 0.059, same top token 84.8% (0.095 / 86.1% without skip) |
 | Adopted 2026-11-07 (lossless) | distill3 draft (+5.4% expected tok/step on held-out sessions; online 24-probe paired +0.054 +- 0.028 per draft; carries the causal mask, +1.7%) and fast exact top-p (+1.5%) |

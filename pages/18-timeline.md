@@ -42,6 +42,7 @@ Greedy numbers (before 2026-10-25) overstate real speed; from 2026-10-25 on, num
 | 11-05 | 9.97 (mean of 4) | causal in-block draft attention (env knob) | no |
 | 11-07 | ~10.1 (9.93 -> 10.08) | fast exact top-p | no |
 | 11-07 | (~+2-5% tok/step in agentic sessions) | distilled draft distill3 recommended (offline +0.046 / +0.055 per position; online 24-probe paired +0.054 +- 0.028) | no |
+| 11-07 | real use ~5.6 tok/s (~6.9 unthrottled) | first real session with distill3 + fast top-p at 13-79k context: 0.494 accepted per draft, DRAM throttle about half the session (SESSION3 Result 16) | measurement |
 
 ## Changelog by day
 
