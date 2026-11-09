@@ -29,6 +29,7 @@ Every setting, with the reason (comments condensed from the script):
 |---|---|---|
 | Model | `K3-dense-v1` + overlay `K3-dense-v2-overlay.gguf` (`LLAMA_TENSOR_SOURCE`, `_RE='.*'`) | 2-bit experts (IQ2_XS) + better dense tensors; KLD vs native 0.243 -> 0.095 at the same speed ([quantization](07-quantization-dense-kv.md)) |
 | Draft | `K3-dflash-distill3-iq4_xs.gguf` (since 2026-11-07; before: `K3-dflash-iq4_xs.gguf`), `--spec-type draft-dflash --spec-draft-n-max 2` | 2 drafted tokens per step; 3 is no faster ([speculative decoding](09-speculative-decoding.md)) |
+| Vision (since 2026-11-09, pending first end-to-end test) | `--mmproj mmproj-BF16.gguf --no-mmproj-offload --image-max-tokens 1024` (`MMPROJ=` disables, `IMG_MAX_TOKENS` sets the cap) | MoonViT tower on the CPU (no VRAM to spare): 448x448 = 256 tokens, ~5.5 s to encode on 4 threads plus prompt time; see [Vision input](#vision-input-2026-11-09) |
 | Placement | `-ngl 99 -ngld 99 -ncmoe 93 --no-op-offload -fit off -sm layer -ts 50,43 -devd CUDA1` | all dense on GPUs (layer split), all routed experts in RAM; GPU1 holds the draft and output head |
 | `LLAMA_MOE_GPU_FRAC=1.0` | any expert may go to the layer's GPU | the GPU reads host memory in place via HMM |
 | `LLAMA_MOE_GPU_K=2` | experts streamed for single tokens | the cache reserves max(K, KB) scratch slots; K 2 frees a slot's VRAM for nothing |
@@ -58,7 +59,16 @@ Every setting, with the reason (comments condensed from the script):
 
 With all of these: bench ~10.1 tok/s (distill3 measured 10.10). The estimate for real agentic use was ~7.4 tok/s (~300 ms/step, ~2.2 tok/step); the first real session measured **~5.6 tok/s** (~6.9 without the DRAM throttle), see [speculative decoding](09-speculative-decoding.md) and [thermals](14-memory-bandwidth-thermals.md). `LLAMA_SPEC_STEP_LOG` stays on.
 
-## `serve_k3.sh` (the experiment launcher)
+## Vision input (2026-11-09)
+
+K3 is natively multimodal (MoonViT-V2 tower, ~0.45 B parameters). The fork gained projector type `kimik3` (commit `986568475`), ported from Unsloth's llama.cpp PR #48 and used with Unsloth's `mmproj-BF16.gguf` (unsloth/Kimi-K3-GGUF, 904 MB, sha256 `c858aec6...`). Two fixes over the PR:
+- the image prefix follows Moonshot's processor: `<|media_begin|>image {W}x{H}<|media_content|>` (original image size), embeddings, `<|media_end|>`
+- `--image-max-tokens` now overrides the GGUF's pixel limit (12.8 MP, ~16k tokens per image, ~6 min of prompt at 47 tok/s). The daily cap is 1024: 2000x1500 -> 972 tokens, 1920x1080 -> 1008.
+
+Measured without the text model (encoder-only test on the CPU, GPUs hidden): 448x448 -> 256 tokens (matches the MLX port's numbers), 5.4-5.5 s on 4 niced threads with the server busy; 640x480 -> 391 tokens, 9.1 s; deterministic, all finite. Known deviation: mtmd resizes to multiples of 28 px where Moonshot's processor pads (640x480: 391 tokens vs 414).
+
+Compatibility checked in code: the server turns OpenAI `image_url` parts into a media marker that the K3 template passes through as text; the DFlash draft injects target features for embedding batches (K3 uses 1-D positions); the disk prompt cache stores image chunks and its fingerprint ignores the projector, so text-only states saved before stay valid. Loading a projector disables context shift and cache reuse (both unused here). Not yet tested end to end (needs a server restart).
+
 
 `serve_k3.sh [fast2|lossless2|fast|lossless]` starts a detached server on port 8091 (log `/data2/k3eval/serve.log`, pid file `/data2/k3eval/serve.pid`). `speed_test.sh` drives it. Modes:
 
