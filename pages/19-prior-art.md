@@ -76,3 +76,17 @@ Before K3 the same machine (then with 125 GB of RAM, later 378 GiB, and one 3090
 | Engram tables (~189 GiB on host), `idx.*` retrieval layers | DeepSeek-V4.1 model features | K3 has neither |
 | Prefix tree over refcounted 256-row KV pages | several prompt branches share KV | our one real-use miss was a compacted prompt with no shared prefix |
 | In-kernel draft: 3 MoE layers, block 6, rank-128 Markov logit-bias head (embed [vocab, 128], head [128, vocab]) | the Markov head makes each draft position depend on the previous draft token | **untested idea:** our DFlash draft decodes `[anchor, mask, mask]` in one pass, so position 2 never sees the sampled position 1. RadixArk's K3 DSpark had such a head but differs in everything else, so its result says nothing about the head alone |
+
+## LinQuant (read 2026-11-08, commit `82cad9e`; arXiv 2610.39418)
+
+[ntumm120/LinQuant](https://github.com/ntumm120/LinQuant): INT8 chunkwise **prefill** kernels (Triton) for linear recurrences including KDA, plus seven invariances (Q/K and V rotations, diagonal rescalings, decay and write-factor placement). Production results are Mamba-2 and Nemotron-H only; KDA appears only in a controlled study on 340M and 1.3B models that are not released. Read only; not built or run.
+
+| Part | Result in the paper | For K3 |
+|---|---|---|
+| INT8 KDA operands, per-channel value scales, FP32 carry | WikiText-2 perplexity 14.489 -> 14.511 (340M), 9.460 -> 9.467 (1.3B) | near-lossless there, but untested on K3 and would need a KLD check; INT4 is far worse (28.7 / 20.2) |
+| Invariances | help most at coarse scales or INT6 / INT4; no promoted stack for KDA at INT8, little loss left to recover | nothing to gain at INT8; the 8-bit MLA KV already uses upstream's Hadamard rotation |
+| INT8 stored state | the carry stays FP32, only a read copy is INT8 | no VRAM saving for our KDA state (0.73 / 0.60 GB) |
+| Decode | not covered (prefill only) | our KDA decode is ~2.3 ms/step (33 us x 69 layers) |
+| Marlin W4A8 linears | requires 4-bit integer weights | ruled out: no requants |
+
+**The useful pointer:** our `gated_delta_net.cu` has no chunked form (`//TODO: Add chunked kernel for even faster pre-fill`), so prompts run KDA token by token. Estimate from the decode-shape timing (11 us per token per layer x 69 = ~0.76 ms/token, not measured at prompt shape): ~3.6% of prompt time at 47 tok/s, ~5.3% at ub 2048's 69.5. If a chunked FP32 kernel removed half to three-quarters of that: ~2-4% faster prompts, ~1% of total model time. Not bit-exact (different rounding), so it needs a KLD check. Measure the op at n_tokens 1024 before building anything.
