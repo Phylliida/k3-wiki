@@ -70,6 +70,17 @@ Measured without the text model (encoder-only test on the CPU, GPUs hidden): 448
 Compatibility checked in code: the server turns OpenAI `image_url` parts into a media marker that the K3 template passes through as text; the DFlash draft injects target features for embedding batches (K3 uses 1-D positions); the disk prompt cache stores image chunks and its fingerprint ignores the projector, so text-only states saved before stay valid. Loading a projector disables context shift and cache reuse (both unused here). Not yet tested end to end (needs a server restart).
 
 
+## KV splice: compaction without re-processing (2026-11-09)
+
+`POST /kv/splice` (commits `df6b9d6c3`, `e0dc04902`) replaces a span of a cached conversation with a span of another cached conversation, directly in the KV cache. Use: compact ~90k to ~65k by swapping old messages for a memory note K3 wrote in a separate session, then continue with a cache hit instead of re-processing everything after the swap (10+ minutes at 47 tok/s).
+
+- Request: `src` and `dst` contexts (chat request bodies, rendered like `/v1/chat/completions`, or a raw `prompt`) pick the cached states by longest common prefix (slot, RAM cache, disk cache); `src_span` / `dst_span` are found in the states' own tokens (or `*_range` token indices). Whole message contents make the safest spans (special tokens on both sides).
+- K3 specifics: the MLA cache uses no RoPE, so moved entries are exact copies and need no re-rotation (the generic K-shift would wrongly rotate them, so the splice moves positions without one). The KDA recurrent state stays the conversation's own; context checkpoints after the span are moved (their stored position patched), those inside it dropped. The draft cache gets the same cut and move.
+- Response flags `canonical: false` when the source's sampled tokens are not the tokenizer's split of their text (the compacted prompt then matches only up to the first difference).
+- Tests (LFM2-350M hybrid, CPU): identity splice bit-identical; moved RoPE keys match a shifted prefill (first attention layer rel 2.9e-4); 205 -> 100 tokens in 62 ms, then the compacted conversation reused 73 of 77 prompt tokens. Not yet run on K3. Details: `k3-research/kv-splice/README.md`.
+
+## `serve_k3.sh` (the experiment launcher)
+
 `serve_k3.sh [fast2|lossless2|fast|lossless]` starts a detached server on port 8091 (log `/data2/k3eval/serve.log`, pid file `/data2/k3eval/serve.pid`). `speed_test.sh` drives it. Modes:
 
 | Mode | What | Measured |
